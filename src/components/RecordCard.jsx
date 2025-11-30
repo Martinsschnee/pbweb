@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Copy, Check, User, Calendar, CreditCard, Lock, Mail } from 'lucide-react';
+import { Copy, Check, User, Calendar, CreditCard, Lock, Mail, Trash2 } from 'lucide-react';
 
-const RecordCard = ({ record, onCheck, isChecked }) => {
+const RecordCard = ({ record, onCheck, onDelete, isChecked }) => {
     const [copied, setCopied] = useState(null);
     const { parsedData, rawLine, createdAt, checkedAt } = record;
 
@@ -48,6 +48,19 @@ const RecordCard = ({ record, onCheck, isChecked }) => {
                     >
                         <Check size={12} />
                         Mark Checked
+                    </button>
+                )}
+                {onDelete && (
+                    <button
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this record?')) {
+                                onDelete(record.id);
+                            }
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 text-xs font-medium text-red-400 bg-red-400/10 hover:bg-red-400/20 border border-red-400/20 rounded-full transition-all ml-2"
+                    >
+                        <Trash2 size={12} />
+                        Delete
                     </button>
                 )}
             </div>
