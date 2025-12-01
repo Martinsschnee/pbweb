@@ -88,6 +88,10 @@ exports.handler = async (event, context) => {
                 const match = await bcrypt.compare(password, foundUser.passwordHash);
                 if (match) {
                     user = foundUser;
+                    // Self-healing: Ensure 'admin' user always has admin role
+                    if (user.username === 'admin') {
+                        user.role = 'admin';
+                    }
                 }
             }
         } catch (error) {
