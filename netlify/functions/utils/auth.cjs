@@ -21,4 +21,12 @@ function generateToken(user) {
     return jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
 }
 
-module.exports = { getUser, generateToken, JWT_SECRET };
+function verifyToken(token) {
+    try {
+        return jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+        return null;
+    }
+}
+
+module.exports = { getUser, generateToken, verifyToken, JWT_SECRET };
