@@ -12,22 +12,29 @@ Wenn Sie Ihre lokalen Blob-Daten auf Netlify hochladen möchten, haben Sie mehre
    - Unix: `.netlify/blobs/deploy/records/data.json`
 5. Klicken Sie auf "Daten hochladen"
 
-Die Daten werden direkt zu Netlify Blobs hochgeladen.
+Die Authentifizierung erfolgt automatisch über Ihren Login-Cookie.
 
 ## Option 2: Mit dem Upload-Skript
 
 ### Vorbereitung
 
-Stellen Sie sicher, dass Sie auf Ihrer Netlify-Site angemeldet sind und das Admin-Auth-Token haben:
+Für das Skript benötigen Sie ein Admin-Token. Da die Authentifizierung über HttpOnly-Cookies läuft, 
+müssen Sie das Token aus dem Cookie extrahieren:
 
-1. Öffnen Sie Ihre Website im Browser
-2. Melden Sie sich als Admin an
-3. Öffnen Sie die Browser-Entwicklertools (F12)
-4. Gehen Sie zur Konsole und führen Sie aus:
-   ```javascript
-   localStorage.getItem('token')
-   ```
-5. Kopieren Sie den Wert (das ist Ihr Auth-Token)
+#### Methode 1: Token aus dem Network-Tab holen
+1. Melden Sie sich als Admin an
+2. Öffnen Sie die Browser-Entwicklertools (F12)
+3. Gehen Sie zum "Network" (Netzwerk) Tab
+4. Laden Sie die Seite neu
+5. Klicken Sie auf einen Request (z.B. an `/me`)
+6. Gehen Sie zu "Cookies" oder "Request Headers"
+7. Kopieren Sie den Wert von `auth_token`
+
+#### Methode 2: Direkt aus den Browser-Cookies
+1. Öffnen Sie die Entwicklertools (F12)
+2. Gehen Sie zu Application → Cookies → Ihre Domain
+3. Suchen Sie nach `auth_token`
+4. Kopieren Sie den Wert
 
 ### Upload durchführen
 
