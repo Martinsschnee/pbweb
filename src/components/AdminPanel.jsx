@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LogOut, Activity, Users, Database, RefreshCw, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { LogOut, Activity, Users, Database, RefreshCw, Plus, Trash2, ArrowLeft, Upload } from 'lucide-react';
 
 const AdminPanel = ({ user, onLogout }) => {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -194,6 +194,12 @@ const AdminPanel = ({ user, onLogout }) => {
                             className={`w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-colors ${activeTab === 'data' ? 'bg-blue-500/20 text-blue-400' : 'hover:bg-white/5 text-gray-400'}`}
                         >
                             <Database size={20} /> Data Config
+                        </button>
+                        <button
+                            onClick={() => window.location.href = '/upload-blobs'}
+                            className="w-full text-left px-4 py-3 rounded-xl flex items-center gap-3 transition-colors hover:bg-green-500/20 text-green-400"
+                        >
+                            <Upload size={20} /> Upload Blobs
                         </button>
                     </div>
 

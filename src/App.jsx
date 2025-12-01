@@ -4,6 +4,8 @@ import Background from './components/Background';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import AdminPanel from './components/AdminPanel';
+import BlobUploader from './components/BlobUploader';
+
 
 const ProtectedRoute = ({ children, user, role }) => {
     const location = useLocation();
@@ -77,6 +79,12 @@ function App() {
                     <Route path="/admin" element={
                         <ProtectedRoute user={user} role="admin">
                             <AdminPanel user={user} onLogout={handleLogout} />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/upload-blobs" element={
+                        <ProtectedRoute user={user} role="admin">
+                            <BlobUploader />
                         </ProtectedRoute>
                     } />
 
