@@ -16,16 +16,18 @@ exports.handler = async (event) => {
     }
 
     try {
-        // Verify authentication
-        const authHeader = event.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Verify authentication from cookie
+        const cookie = require('cookie');
+        const cookies = event.headers.cookie ? cookie.parse(event.headers.cookie) : {};
+        const token = cookies.auth_token;
+
+        if (!token) {
             return {
                 statusCode: 401,
-                body: JSON.stringify({ error: 'Unauthorized' })
+                body: JSON.stringify({ error: 'Unauthorized - Not logged in' })
             };
         }
 
-        const token = authHeader.substring(7);
         const decoded = verifyToken(token);
 
         if (!decoded || decoded.role !== 'admin') {

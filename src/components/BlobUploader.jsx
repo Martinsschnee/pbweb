@@ -36,18 +36,12 @@ export default function BlobUploader() {
             const fileContent = await file.text();
             const data = JSON.parse(fileContent);
 
-            // Get auth token from localStorage
-            const token = localStorage.getItem('token');
-            if (!token) {
-                throw new Error('Nicht angemeldet');
-            }
-
-            // Upload to Netlify
+            // Upload to Netlify (credentials: 'include' sends the auth_token cookie)
             const response = await fetch('/.netlify/functions/uploadBlobs', {
                 method: 'POST',
+                credentials: 'include', // Important: sends cookies
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     storeName: 'records',
