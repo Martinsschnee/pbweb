@@ -32,10 +32,17 @@ exports.handler = async (event, context) => {
             return r.ownerId === user.id;
         });
 
-        // Filter checked records similarly if needed, or just return checked IDs that match visible records
-        // For now, let's just return checked IDs that are in the userRecords list
-        const visibleRecordIds = new Set(userRecords.map(r => r.id));
-        const userChecked = db.checked.filter(id => visibleRecordIds.has(id));
+        // Filter checked records by ownership
+        const userChecked = db.checked.filter(r => {
+            if (user.role === 'admin') {
+                if (targetUserId) {
+                    if (targetUserId === 'unassigned') return !r.ownerId;
+                    return r.ownerId === targetUserId;
+                }
+                return r.ownerId === user.id || !r.ownerId;
+            }
+            return r.ownerId === user.id;
+        });
 
         // Pagination
         const startIndex = (page - 1) * limit;

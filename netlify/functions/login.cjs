@@ -69,7 +69,7 @@ exports.handler = async (event, context) => {
         const targetHash = await getAdminPasswordHash();
         const match = await bcrypt.compare(password, targetHash);
         if (match) {
-            user = { id: '1', username: 'admin', role: 'admin' };
+            user = { id: '0', username: 'admin', role: 'admin' };
         }
     }
 
