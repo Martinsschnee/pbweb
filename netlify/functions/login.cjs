@@ -89,8 +89,16 @@ exports.handler = async (event, context) => {
                 if (match) {
                     user = foundUser;
                     // Self-healing: Ensure 'admin' user always has admin role
-                    if (user.username === 'admin') {
+                    if (user.username === 'admin' && user.role !== 'admin') {
                         user.role = 'admin';
+                        // Persist the fix
+                        try {
+                            const updatedUsers = users.map(u => u.id === user.id ? user : u);
+                            await userStore.setJSON('all_users', updatedUsers);
+                            console.log('Fixed admin role in database');
+                        } catch (err) {
+                            console.error('Failed to persist admin role fix', err);
+                        }
                     }
                 }
             }
