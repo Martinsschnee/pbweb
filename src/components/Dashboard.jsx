@@ -1,25 +1,60 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, RefreshCw, LogOut, CheckCircle, List, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import RecordCard from './RecordCard';
 import { parseRecord } from '../utils/parser';
 
 const Dashboard = ({ user, onLogout }) => {
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // State from URL or defaults
+    const activeTab = searchParams.get('tab') || 'active'; // 'active' | 'checked'
+    const minPoints = searchParams.get('minPoints') || '';
+    const sortOrder = searchParams.get('sort') || 'desc'; // 'desc' | 'asc'
+
     const [records, setRecords] = useState([]);
     const [checkedRecords, setCheckedRecords] = useState([]);
     const [inputLine, setInputLine] = useState('');
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('active'); // 'active' | 'checked'
-    const [minPoints, setMinPoints] = useState('');
-    const [sortOrder, setSortOrder] = useState('desc'); // 'desc' | 'asc'
 
-    const fetchRecords = async () => {
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const LIMIT = 50;
+
+    // Helper to update specific params while keeping others
+    const updateParams = (updates) => {
+        const newParams = new URLSearchParams(searchParams);
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === null || value === '') {
+                newParams.delete(key);
+            } else {
+                newParams.set(key, value);
+            }
+        });
+        setSearchParams(newParams);
+    };
+
+    const setActiveTab = (tab) => updateParams({ tab });
+    const setMinPoints = (val) => updateParams({ minPoints: val });
+    const setSortOrder = (val) => updateParams({ sort: val });
+
+    const fetchRecords = async (pageNum = 1, append = false) => {
         setLoading(true);
         try {
-            const res = await fetch('/.netlify/functions/getRecords');
+            const res = await fetch(`/.netlify/functions/getRecords?page=${pageNum}&limit=${LIMIT}`);
             if (res.ok) {
                 const data = await res.json();
-                setRecords(data.records || []);
-                setCheckedRecords(data.checked || []);
+                if (append) {
+                    setRecords(prev => [...prev, ...data.records]);
+                } else {
+                    setRecords(data.records || []);
+                }
+
+                if (!append) setCheckedRecords(data.checked || []);
+
+                setHasMore(data.records.length === LIMIT);
+                setPage(pageNum);
             } else if (res.status === 401) {
                 onLogout();
             }
@@ -33,6 +68,10 @@ const Dashboard = ({ user, onLogout }) => {
     useEffect(() => {
         fetchRecords();
     }, []);
+
+    const handleLoadMore = () => {
+        fetchRecords(page + 1, true);
+    };
 
     const handleAdd = async (e) => {
         e.preventDefault();
@@ -61,7 +100,7 @@ const Dashboard = ({ user, onLogout }) => {
 
             if (res.ok) {
                 setInputLine('');
-                fetchRecords();
+                fetchRecords(1, false); // Refresh list
             }
         } catch (error) {
             console.error('Failed to add record', error);
@@ -76,7 +115,19 @@ const Dashboard = ({ user, onLogout }) => {
             });
 
             if (res.ok) {
-                fetchRecords();
+                // Optimistic update
+                const record = records.find(r => r.id === id);
+                if (record) {
+                    setRecords(prev => prev.filter(r => r.id !== id));
+                    // We can't easily add to checkedRecords without full data if it was just an ID, 
+                    // but here we have the record.
+                    // However, for simplicity and consistency with backend, we might just refresh or accept it disappears from Active.
+                    // If we want it to appear in Checked immediately:
+                    // setCheckedRecords(prev => [...prev, record]); 
+                    // But let's stick to simple removal from active for now, user can refresh to see in checked if needed, 
+                    // or we can fetch. Fetching resets pagination which is annoying.
+                    // Let's just remove from active.
+                }
             }
         } catch (error) {
             console.error('Failed to check record', error);
@@ -91,7 +142,8 @@ const Dashboard = ({ user, onLogout }) => {
             });
 
             if (res.ok) {
-                fetchRecords();
+                setRecords(prev => prev.filter(r => r.id !== id));
+                setCheckedRecords(prev => prev.filter(r => r.id !== id));
             }
         } catch (error) {
             console.error('Failed to delete record', error);
@@ -107,7 +159,8 @@ const Dashboard = ({ user, onLogout }) => {
             });
 
             if (res.ok) {
-                fetchRecords();
+                setCheckedRecords([]);
+                fetchRecords(1, false);
             }
         } catch (error) {
             console.error('Failed to clear checked records', error);
@@ -147,14 +200,14 @@ const Dashboard = ({ user, onLogout }) => {
                             />
                         </div>
                         <button
-                            onClick={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                            onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
                             className="p-2 rounded-lg glass-button text-gray-400 hover:text-white flex items-center gap-2"
                             title={`Sort by Points (${sortOrder === 'desc' ? 'High to Low' : 'Low to High'})`}
                         >
                             {sortOrder === 'desc' ? <ArrowDown size={20} /> : <ArrowUp size={20} />}
                         </button>
                         <button
-                            onClick={fetchRecords}
+                            onClick={() => fetchRecords(1, false)}
                             className="p-2 rounded-lg glass-button text-gray-400 hover:text-white"
                             title="Refresh"
                         >
@@ -218,13 +271,27 @@ const Dashboard = ({ user, onLogout }) => {
                 {/* List */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {activeTab === 'active' ? (
-                        filteredRecords.length > 0 ? (
-                            filteredRecords.map(record => (
-                                <RecordCard key={record.id} record={record} onCheck={handleCheck} onDelete={handleDelete} isChecked={false} />
-                            ))
-                        ) : (
-                            <div className="col-span-full text-center py-12 text-gray-500">No active records found.</div>
-                        )
+                        <>
+                            {filteredRecords.length > 0 ? (
+                                filteredRecords.map(record => (
+                                    <RecordCard key={record.id} record={record} onCheck={handleCheck} onDelete={handleDelete} isChecked={false} />
+                                ))
+                            ) : (
+                                <div className="col-span-full text-center py-12 text-gray-500">No active records found.</div>
+                            )}
+
+                            {hasMore && (
+                                <div className="col-span-full flex justify-center mt-4">
+                                    <button
+                                        onClick={handleLoadMore}
+                                        disabled={loading}
+                                        className="glass-button px-6 py-2 rounded-xl text-white font-medium disabled:opacity-50"
+                                    >
+                                        {loading ? 'Loading...' : 'Load More'}
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     ) : (
                         checkedRecords.length > 0 ? (
                             checkedRecords.map(record => (

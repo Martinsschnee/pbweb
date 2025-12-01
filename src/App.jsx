@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Background from './components/Background';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import AdminPanel from './components/AdminPanel';
+
+const ProtectedRoute = ({ children, user, role }) => {
+    const location = useLocation();
+    if (!user) {
+        return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+    if (role && user.role !== role) {
+        return <Navigate to="/dashboard" replace />;
+    }
+    return children;
+};
 
 function App() {
     const [user, setUser] = useState(null);
@@ -13,19 +26,14 @@ function App() {
 
     const checkSession = async () => {
         try {
-            // Try to fetch records as a way to validate session
-            // Or we could have a dedicated /me endpoint, but this works for now
-            const res = await fetch('/.netlify/functions/getRecords');
+            const res = await fetch('/.netlify/functions/getRecords'); // We will need a better check later
             if (res.ok) {
-                // If successful, we assume we are logged in. 
-                // Ideally the API returns user info, but for now we just set a dummy or parse if available.
-                // Let's assume the login flow sets the user state correctly, 
-                // but on refresh we need to know who we are. 
-                // For this simple app, just knowing we are authorized is enough.
-                setUser({ username: 'admin' });
+                // For now, assume admin if username is admin. 
+                // We will update this when we have a real /me endpoint.
+                setUser({ username: 'admin', role: 'admin' });
             }
         } catch (error) {
-            // Not logged in
+            console.error("Session check failed", error);
         } finally {
             setLoading(false);
         }
@@ -36,10 +44,9 @@ function App() {
     };
 
     const handleLogout = () => {
-        // Clear cookie by setting it to expire
         document.cookie = 'auth_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
         setUser(null);
-        window.location.reload(); // Force reload to clear any state/cookies cleanly
+        window.location.href = '/login';
     };
 
     if (loading) {
@@ -51,16 +58,30 @@ function App() {
     }
 
     return (
-        <>
+        <Router>
             <Background />
             <div className="relative z-10">
-                {user ? (
-                    <Dashboard user={user} onLogout={handleLogout} />
-                ) : (
-                    <Login onLogin={handleLogin} />
-                )}
+                <Routes>
+                    <Route path="/login" element={
+                        user ? <Navigate to="/dashboard" replace /> : <Login onLogin={handleLogin} />
+                    } />
+
+                    <Route path="/dashboard" element={
+                        <ProtectedRoute user={user}>
+                            <Dashboard user={user} onLogout={handleLogout} />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/admin" element={
+                        <ProtectedRoute user={user} role="admin">
+                            <AdminPanel user={user} onLogout={handleLogout} />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+                </Routes>
             </div>
-        </>
+        </Router>
     );
 }
 

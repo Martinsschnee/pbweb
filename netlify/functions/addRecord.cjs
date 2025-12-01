@@ -28,6 +28,7 @@ exports.handler = async (event, context) => {
                 id: uuidv4(),
                 rawLine,
                 parsedData,
+                ownerId: user.id,
                 createdAt: new Date().toISOString()
             };
             newRecords.push(newRecord);

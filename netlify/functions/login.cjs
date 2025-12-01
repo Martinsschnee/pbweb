@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const cookie = require('cookie');
 const { getStore } = require('@netlify/blobs');
 const { SITE_ID } = require('./utils/config.cjs');
+const { logAction } = require('./utils/logger.cjs');
 
 const LOCKOUT_TIME = 15 * 60 * 1000; // 15 minutes
 const MAX_ATTEMPTS = 5;
@@ -61,23 +62,49 @@ exports.handler = async (event, context) => {
     }
 
     // Verify Credentials
-    if (username !== 'admin') {
-        await updateRateLimit(ip, { count: currentCount + 1, lastAttempt: Date.now() });
-        return { statusCode: 401, body: JSON.stringify({ error: 'Invalid credentials' }) };
+    let user = null;
+
+    // 1. Check Hardcoded Admin
+    if (username === 'admin') {
+        const targetHash = await getAdminPasswordHash();
+        const match = await bcrypt.compare(password, targetHash);
+        if (match) {
+            user = { id: '1', username: 'admin', role: 'admin' };
+        }
     }
 
-    const targetHash = await getAdminPasswordHash();
-    const match = await bcrypt.compare(password, targetHash);
+    // 2. Check Users Blob (if not already found)
+    if (!user) {
+        try {
+            const userStore = getStore({
+                name: 'users',
+                siteID: SITE_ID,
+                token: blobToken
+            });
+            const users = await userStore.get('all_users', { type: 'json' }) || [];
+            const foundUser = users.find(u => u.username === username);
 
-    if (!match) {
+            if (foundUser) {
+                const match = await bcrypt.compare(password, foundUser.passwordHash);
+                if (match) {
+                    user = foundUser;
+                }
+            }
+        } catch (error) {
+            console.error("Error checking users blob", error);
+        }
+    }
+
+    if (!user) {
         await updateRateLimit(ip, { count: currentCount + 1, lastAttempt: Date.now() });
         return { statusCode: 401, body: JSON.stringify({ error: 'Invalid credentials' }) };
     }
 
     // Success - Reset attempts
     await updateRateLimit(ip, { count: 0, lastAttempt: Date.now() });
+    await logAction('login', user, event);
 
-    const token = generateToken({ id: '1', username: 'admin' });
+    const token = generateToken(user);
 
     const cookieHeader = cookie.serialize('auth_token', token, {
         httpOnly: true,
@@ -93,6 +120,6 @@ exports.handler = async (event, context) => {
             'Set-Cookie': cookieHeader,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ success: true, user: { username: 'admin' } })
+        body: JSON.stringify({ success: true, user: { username: user.username, role: user.role } })
     };
 };
